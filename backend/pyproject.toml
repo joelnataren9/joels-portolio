@@ -1,0 +1,21 @@
+[project]
+name = "portfolio-backend"
+version = "0.1.0"
+description = "FastAPI backend for AI-futuristic personal portfolio using Firebase"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "firebase-admin",
+  "python-dotenv",
+  "pydantic>=2,<3",
+  "python-frontmatter",
+]
+
+[project.optional-dependencies]
+cosmos = ["azure-cosmos"]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+

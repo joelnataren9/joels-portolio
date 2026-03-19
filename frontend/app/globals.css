@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-background text-slate-800;
+}
+
+.prose-dark {
+  @apply prose prose-invert prose-slate;
+}
+
+/* Animated gradient on name */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gradient-text-animate {
+  animation: gradient-shift 5s ease-in-out infinite;
+}
+
+/* Subtle moving background (light theme) */
+@keyframes bg-drift {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    opacity: 0.97;
+    transform: scale(1.02) translate(1%, 0.5%);
+  }
+}
+
+.bg-drift {
+  animation: bg-drift 12s ease-in-out infinite;
+}
+
