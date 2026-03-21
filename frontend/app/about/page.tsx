@@ -3,7 +3,7 @@ import Image from "next/image";
 export default function AboutPage() {
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-semibold tracking-tight text-slate-800">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-800 sm:text-3xl">
         About me
       </h1>
 

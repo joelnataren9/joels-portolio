@@ -30,6 +30,7 @@ build/
 **/serviceAccountKey*.json
 **/*-credentials*.json
 **/firebase-adminsdk*.json
+backend/joels-portfolio-2f583-firebase-adminsdk-*.json
 
 # IDE / editor
 .idea/

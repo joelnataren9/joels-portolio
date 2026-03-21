@@ -1,34 +1,17 @@
-async function fetchPosts() {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!baseUrl) {
-    return [];
-  }
-
-  try {
-    const res = await fetch(`${baseUrl}/posts`, { next: { revalidate: 60 } });
-    if (!res.ok) {
-      return [];
-    }
-    return (await res.json()) as {
-      slug: string;
-      title: string;
-      summary?: string;
-      publishedAt?: string;
-      tags?: string[];
-    }[];
-  } catch {
-    return [];
-  }
-}
+import Link from "next/link";
+import { formatDate } from "../lib/date";
+import { fetchPosts } from "../lib/posts";
 
 export default async function BlogIndexPage() {
   const posts = await fetchPosts();
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Blog</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+        Blog
+      </h1>
       {posts.length === 0 ? (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-600">
           No posts yet, check back later!
         </p>
       ) : (
@@ -36,11 +19,16 @@ export default async function BlogIndexPage() {
           {posts.map((post) => (
             <li
               key={post.slug}
-              className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4"
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
             >
-              <p className="text-sm font-medium text-slate-100">{post.title}</p>
+              <p className="text-xs text-slate-500">
+                {formatDate(post.publishedAt ?? post.published_at) ?? "—"}
+              </p>
+              <Link href={`/blog/${post.slug}`} className="mt-0.5 block font-medium text-slate-900 hover:text-emerald-600">
+                {post.title}
+              </Link>
               {post.summary && (
-                <p className="mt-1 text-xs text-slate-400">{post.summary}</p>
+                <p className="mt-1 text-sm text-slate-600">{post.summary}</p>
               )}
             </li>
           ))}

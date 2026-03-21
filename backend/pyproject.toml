@@ -10,10 +10,13 @@ dependencies = [
   "python-dotenv",
   "pydantic>=2,<3",
   "python-frontmatter",
+  "pyjwt[crypto]",
+  "httpx",
 ]
 
 [project.optional-dependencies]
 cosmos = ["azure-cosmos"]
+dev = ["pytest"]
 
 [build-system]
 requires = ["setuptools", "wheel"]

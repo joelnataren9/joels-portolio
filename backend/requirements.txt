@@ -1,0 +1,10 @@
+# Azure App Service uses requirements.txt for Python deployment
+# Generated from pyproject.toml dependencies
+fastapi>=0.100,<1
+uvicorn[standard]>=0.22,<1
+firebase-admin>=6.0,<7
+python-dotenv>=1.0,<2
+pydantic>=2,<3
+python-frontmatter>=1.0,<2
+pyjwt[crypto]>=2.8,<3
+httpx>=0.24,<1
