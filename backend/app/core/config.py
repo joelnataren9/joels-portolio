@@ -34,8 +34,17 @@ def _env_strip(name: str) -> Optional[str]:
 
 
 def _env_firebase_credentials_json() -> Optional[str]:
-    """Azure may expose the same app setting as FIREBASE_CREDENTIALS_JSON or APPSETTING_...."""
-    for name in ("FIREBASE_CREDENTIALS_JSON", "APPSETTING_FIREBASE_CREDENTIALS_JSON"):
+    """Read inline service account JSON (Azure App Settings, CI, etc.).
+
+    Tries several names: Azure sometimes duplicates settings as APPSETTING_* .
+    FIREABSE_* is a common typo in the portal — accept it so creds are not silently missing.
+    """
+    for name in (
+        "FIREBASE_CREDENTIALS_JSON",
+        "APPSETTING_FIREBASE_CREDENTIALS_JSON",
+        "FIREABSE_CREDENTIALS_JSON",
+        "APPSETTING_FIREABSE_CREDENTIALS_JSON",
+    ):
         v = _env_strip(name)
         if v:
             return v
