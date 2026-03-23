@@ -61,7 +61,16 @@ This guide covers deploying the portfolio to Azure Portal (App Service and Stati
 
 ```bash
 cd backend
-zip -r ../backend.zip . -x "*.git*" -x "__pycache__*" -x "*.pyc"
+# Exclude Firebase service account keys, venv, and junk (never ship *.json keys in the zip)
+zip -r ../backend.zip . \
+  -x "*.git*" \
+  -x "*__pycache__*" \
+  -x "*.pyc" \
+  -x ".venv/*" \
+  -x "venv/*" \
+  -x "*.env" \
+  -x "*firebase-adminsdk*.json" \
+  -x "*serviceAccountKey*.json"
 az webapp deployment source config-zip \
   --resource-group personal_portfolio \
   --name joels-portfolio \

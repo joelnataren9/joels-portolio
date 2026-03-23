@@ -59,7 +59,7 @@ def _to_document(model: Union[PostCreate, PostUpdate], existing: Optional[dict] 
     return base
 
 
-@router.get("/", response_model=List[PostListItem], response_model_by_alias=True, summary="List blog posts")
+@router.get("", response_model=List[PostListItem], response_model_by_alias=True, summary="List blog posts")
 async def list_posts(
     tag: Optional[str] = Query(default=None, description="Filter by tag"),
     search: Optional[str] = Query(default=None, description="Search in title/summary"),
@@ -77,7 +77,7 @@ async def get_post(slug: str) -> Post:
     return Post.model_validate(data)
 
 
-@router.post("/", response_model=Post, status_code=201, summary="Create a blog post (admin)")
+@router.post("", response_model=Post, status_code=201, summary="Create a blog post (admin)")
 async def create_post(
     body: PostCreate,
     _user: dict = Depends(verify_admin_token),

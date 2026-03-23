@@ -32,6 +32,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Remove service account JSON from package (use FIREBASE_CREDENTIALS_JSON in Azure only)
+        run: find . -name '*firebase-adminsdk*.json' -delete
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
