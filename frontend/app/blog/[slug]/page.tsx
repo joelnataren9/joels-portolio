@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import { publicApiFetch } from "../../lib/api-fetch";
 import { formatDate } from "../../lib/date";
 
 type Post = {
@@ -13,7 +14,7 @@ async function fetchPost(slug: string): Promise<Post | null> {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!baseUrl) return null;
   try {
-    const res = await fetch(`${baseUrl}/posts/${slug}`, {
+    const res = await publicApiFetch(`${baseUrl}/posts/${slug}`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) return null;
