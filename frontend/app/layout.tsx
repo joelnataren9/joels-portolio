@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import Navbar from "./components/Navbar";
 import "./globals.css";
 
@@ -22,10 +21,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </main>
           <footer className="border-t border-slate-200 px-4 py-4 text-center text-xs text-slate-500 sm:px-6">
-            © {new Date().getFullYear()} Joel Natarén. All rights reserved.{" "}
-            <a href="/admin" className="text-slate-400 hover:text-slate-600">
-              Admin
-            </a>
+            <p>
+              Made by{" "}
+              <a
+                href="https://github.com/joelnataren9"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-slate-600 transition hover:text-emerald-600"
+              >
+                &lt;joelnataren&gt;
+              </a>
+            </p>
           </footer>
         </div>
       </body>

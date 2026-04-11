@@ -40,6 +40,14 @@ const experiences: TimelineEntry[] = [
     dotColor: "bg-emerald-300",
   },
   {
+    date: "Aug 2022 – Dec 2024 · East Lansing, MI",
+    title:
+      "Undergraduate Learning Assistant · CSE 331 · Michigan State University",
+    description:
+      "Supported students in Data Structures & Algorithms—explaining core concepts, debugging approaches, and project work so they could build confidence on weekly and course-long assignments.",
+    dotColor: "bg-sky-500",
+  },
+  {
     date: "2021 – 2024 · East Lansing, MI",
     title: "CoRe Peer Leader · Michigan State University",
     description:

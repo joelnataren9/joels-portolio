@@ -14,6 +14,8 @@ This guide covers deploying the portfolio to Azure Portal (App Service and Stati
 
 ## 1. Backend (FastAPI) → Azure App Service
 
+**Data vs API:** Posts and other content live in **Firebase (Firestore)**. The `backend/` app is a **FastAPI service** that reads and writes Firestore using the Firebase Admin SDK. You configure Firestore and service-account credentials in **Firebase / Azure app settings**; **`az webapp deploy` only publishes the Python API** to App Service—it does not “deploy” Firestore itself (that stays in Firebase).
+
 ### Create the Web App in Azure Portal
 
 1. Go to [Azure Portal](https://portal.azure.com) → **Create a resource** → **Web App**
@@ -57,7 +59,11 @@ This guide covers deploying the portfolio to Azure Portal (App Service and Stati
 
 ### Deploy the Backend
 
-**Option A: Deploy from local (Zip deploy)**
+**Option A: Deploy from local (zip)**
+
+1. Sign in: `az login` (and pick the right subscription with `az account set --subscription <id>` if needed).
+
+2. From the repo root, build a zip of the `backend` folder (contents at zip root should be `app/`, `requirements.txt`, etc.—not a nested `backend/` folder):
 
 ```bash
 cd backend
@@ -71,10 +77,24 @@ zip -r ../backend.zip . \
   -x "*.env" \
   -x "*firebase-adminsdk*.json" \
   -x "*serviceAccountKey*.json"
+cd ..
+```
+
+3. Push the zip to the Web App using **either** command (same outcome; `az webapp deploy` is the current one-stop command):
+
+```bash
+# Preferred: unified deploy (Azure CLI 2.48+)
+az webapp deploy \
+  --resource-group personal_portfolio \
+  --name joels-portfolio \
+  --src-path backend.zip \
+  --type zip
+
+# Alternative: older zip API (still supported)
 az webapp deployment source config-zip \
   --resource-group personal_portfolio \
   --name joels-portfolio \
-  --src ../backend.zip
+  --src backend.zip
 ```
 
 **Option B: Deploy from GitHub (recommended)**
@@ -155,11 +175,14 @@ The backend allows all origins (`*`). If you restrict CORS later, add your front
 
 ### Backend
 
+Create or update the app, then configure Application settings in the Portal:
+
 ```bash
 cd backend
 az webapp up --name joels-portfolio --resource-group personal_portfolio --runtime "PYTHON:3.11"
-# Then configure Application settings in the Portal
 ```
+
+Ongoing code updates: build `backend.zip` as in **Option A** (zip ends up next to the `backend/` folder), then from the repo root run `az webapp deploy --resource-group personal_portfolio --name joels-portfolio --src-path backend.zip --type zip`.
 
 ### Frontend
 
