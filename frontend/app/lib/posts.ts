@@ -1,5 +1,3 @@
-import { publicApiFetch } from "./api-fetch";
-
 export type PostPreview = {
   slug: string;
   title: string;
@@ -16,9 +14,7 @@ export async function fetchPosts(): Promise<PostPreview[]> {
   }
 
   try {
-    const res = await publicApiFetch(`${baseUrl}/posts`, {
-      next: { revalidate: 60 },
-    });
+    const res = await fetch(`${baseUrl}/posts`, { next: { revalidate: 60 } });
     if (!res.ok) {
       return [];
     }

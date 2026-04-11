@@ -7,6 +7,8 @@ import Timeline from "./Timeline";
 import RecentPosts from "./RecentPosts";
 import type { PostPreview } from "../lib/posts";
 
+const MotionLink = motion(Link);
+
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -220,11 +222,28 @@ export default function HomePageClient({
             View all projects
           </Link>
         </div>
-        <div className="grid gap-4 md:max-w-xl">
-          <motion.a
-            href="https://joels-budget-app-frontend-egaxcfa6b7ghdtcn.centralus-01.azurewebsites.net/home"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="grid gap-4 md:grid-cols-2 md:max-w-4xl">
+          <MotionLink
+            href="/projects#spartahack-9"
+            className="block rounded-2xl border border-slate-200 bg-white/90 p-5 text-sm text-slate-700 shadow-sm transition-colors hover:text-slate-900"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ type: "spring", stiffness: 100, damping: 18 }}
+            whileHover={{ y: -6, scale: 1.02, borderColor: "rgba(16,185,129,0.4)", boxShadow: "0 12px 40px -12px rgba(15,23,42,0.12)" }}
+          >
+            <p className="font-medium text-slate-800">SpartaHack 9 (2024)</p>
+            <p className="mt-1 text-xs text-slate-500">
+              As an organizer, I helped ship the hackathon site where attendees could
+              apply, follow pre-event updates, find the schedule during the weekend,
+              and connect with the community.
+            </p>
+            <p className="mt-2 text-xs font-medium text-emerald-600">
+              Read the write-up →
+            </p>
+          </MotionLink>
+          <MotionLink
+            href="/projects#budget-app"
             className="block rounded-2xl border border-slate-200 bg-white/90 p-5 text-sm text-slate-700 shadow-sm transition-colors hover:text-slate-900"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -234,13 +253,13 @@ export default function HomePageClient({
           >
             <p className="font-medium text-slate-800">Budget App</p>
             <p className="mt-1 text-xs text-slate-500">
-              I worked on creating an app that leverages Plaid and AI to track my
-              expenses, categorize them, and help me track my budget and my friends and family's budgets.
+              In late 2025 I built an app that leverages Plaid and AI to track my
+              expenses, categorize them, and help me track my budget and my friends and family&apos;s budgets.
             </p>
             <p className="mt-2 text-xs font-medium text-emerald-600">
-              Visit app →
+              Read the write-up →
             </p>
-          </motion.a>
+          </MotionLink>
         </div>
       </motion.section>
 

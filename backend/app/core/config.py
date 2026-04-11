@@ -66,6 +66,14 @@ def _env_credentials_file_path(name: str) -> Optional[str]:
 
 @lru_cache
 def get_settings() -> Settings:
+    firebase_credentials_json = _env_firebase_credentials_json()
+    # When FIREBASE_CREDENTIALS_JSON is set (Azure), use only that — ignore
+    # GOOGLE_APPLICATION_CREDENTIALS so a stale path or startup.sh file never wins.
+    firebase_credentials_path = (
+        None
+        if firebase_credentials_json
+        else _env_credentials_file_path("GOOGLE_APPLICATION_CREDENTIALS")
+    )
     return Settings(
         firebase_api_key=_env_strip("FIREBASE_API_KEY"),
         jwt_secret=os.getenv("JWT_SECRET", "change-me-in-production"),
@@ -76,8 +84,8 @@ def get_settings() -> Settings:
         firebase_messaging_sender_id=os.getenv("FIREBASE_MESSAGING_SENDER_ID", "719665161324"),
         firebase_app_id=os.getenv("FIREBASE_APP_ID", "1:719665161324:web:1d053ed21e9f6b2ce3e449"),
         firebase_measurement_id=_env_strip("FIREBASE_MEASUREMENT_ID"),
-        firebase_credentials_path=_env_credentials_file_path("GOOGLE_APPLICATION_CREDENTIALS"),
-        firebase_credentials_json=_env_firebase_credentials_json(),
+        firebase_credentials_path=firebase_credentials_path,
+        firebase_credentials_json=firebase_credentials_json,
         firebase_posts_collection=os.getenv("FIREBASE_POSTS_COLLECTION", "posts"),
         firebase_projects_collection=os.getenv("FIREBASE_PROJECTS_COLLECTION", "projects"),
     )
