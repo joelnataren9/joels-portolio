@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "./components/Navbar";
 import "./globals.css";
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </footer>
           </div>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
