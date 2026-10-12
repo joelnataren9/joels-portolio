@@ -8,7 +8,7 @@ import binascii
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from app.core.config import get_settings
 
@@ -231,6 +231,16 @@ def _projects_collection():
     return _get_firestore().collection(name)
 
 
+def _trips_collection():
+    settings = get_settings()
+    name = settings.firebase_trips_collection or "trips"
+    return _get_firestore().collection(name)
+
+
+class TripNotFoundError(Exception):
+    pass
+
+
 # --- Public API (same signatures regardless of provider) ---
 
 def list_posts(
@@ -298,3 +308,60 @@ def list_projects() -> List[Dict[str, Any]]:
         data["id"] = doc.id
         items.append(data)
     return items
+
+
+def list_trips() -> List[Dict[str, Any]]:
+    items = []
+    for doc in _trips_collection().stream():
+        data = doc.to_dict() or {}
+        data["id"] = doc.id
+        items.append(data)
+    return items
+
+
+def get_trip(trip_id: str) -> Optional[Dict[str, Any]]:
+    snap = _trips_collection().document(trip_id).get()
+    if not snap.exists:
+        return None
+    data = snap.to_dict() or {}
+    data["id"] = snap.id
+    return data
+
+
+def create_trip(document: Dict[str, Any], trip_id: Optional[str] = None) -> Dict[str, Any]:
+    """Store a new trip; generates an id unless one is given. Returns it with "id"."""
+    coll = _trips_collection()
+    ref = coll.document(trip_id) if trip_id else coll.document()
+    body = {k: v for k, v in document.items() if k != "id"}
+    ref.set(body)
+    return {**body, "id": ref.id}
+
+
+def update_trip(
+    trip_id: str, mutate: Callable[[Dict[str, Any]], Dict[str, Any]]
+) -> Dict[str, Any]:
+    """Atomically read a trip, apply mutate(doc) -> new doc, and write it back.
+
+    mutate may raise to abort (e.g. on a version conflict). It can run more than
+    once if the transaction retries, so it must not have side effects.
+    Raises TripNotFoundError if the trip does not exist.
+    """
+    ref = _trips_collection().document(trip_id)
+
+    @firestore.transactional
+    def _run(transaction):
+        snap = ref.get(transaction=transaction)
+        if not snap.exists:
+            raise TripNotFoundError(trip_id)
+        current = snap.to_dict() or {}
+        current["id"] = snap.id
+        updated = mutate(current)
+        body = {k: v for k, v in updated.items() if k != "id"}
+        transaction.set(ref, body)
+        return {**body, "id": snap.id}
+
+    return _run(_get_firestore().transaction())
+
+
+def delete_trip(trip_id: str) -> None:
+    _trips_collection().document(trip_id).delete()

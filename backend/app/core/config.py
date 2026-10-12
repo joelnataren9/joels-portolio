@@ -19,6 +19,7 @@ class Settings(BaseModel):
     firebase_credentials_json: Optional[str] = None  # JSON string for Azure/cloud (no file path)
     firebase_posts_collection: Optional[str] = None
     firebase_projects_collection: Optional[str] = None
+    firebase_trips_collection: Optional[str] = None
 
     @property
     def has_firebase_config(self) -> bool:
@@ -89,4 +90,5 @@ def get_settings() -> Settings:
         firebase_credentials_json=firebase_credentials_json,
         firebase_posts_collection=os.getenv("FIREBASE_POSTS_COLLECTION", "posts"),
         firebase_projects_collection=os.getenv("FIREBASE_PROJECTS_COLLECTION", "projects"),
+        firebase_trips_collection=os.getenv("FIREBASE_TRIPS_COLLECTION", "trips"),
     )

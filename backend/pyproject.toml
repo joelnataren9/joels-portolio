@@ -16,7 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 cosmos = ["azure-cosmos"]
-dev = ["pytest"]
+dev = ["pytest", "beautifulsoup4"]  # beautifulsoup4: scripts/import_trip_html.py
 
 [build-system]
 requires = ["setuptools", "wheel"]

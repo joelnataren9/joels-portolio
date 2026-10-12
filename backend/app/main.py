@@ -7,7 +7,7 @@ from fastapi import FastAPI
 load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import admin, health, posts, projects
+from app.api.routes import admin, health, posts, projects, trips
 from app.db.data import init_firebase
 
 
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/health", tags=["health"])
     app.include_router(posts.router, prefix="/posts", tags=["posts"])
     app.include_router(projects.router, prefix="/projects", tags=["projects"])
+    app.include_router(trips.router, prefix="/trips", tags=["trips"])
 
     return app
 
