@@ -1,26 +1,18 @@
 """Admin login - backend verifies Firebase credentials via REST API, returns JWT."""
 
 import datetime
-import os
-from typing import Any, Optional, Set
 
 import httpx
 import jwt
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
+from app.core.auth import get_allowed_admin_emails, get_jwt_secret, is_admin_email
 from app.core.config import get_settings
 
 router = APIRouter()
 
 FIREBASE_SIGN_IN_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-
-
-def get_allowed_emails() -> Optional[Set[str]]:
-    raw = os.getenv("ALLOWED_ADMIN_EMAILS", "").strip()
-    if not raw:
-        return None
-    return {e.strip().lower() for e in raw.split(",") if e.strip()}
 
 
 class LoginRequest(BaseModel):
@@ -40,11 +32,7 @@ def create_jwt(email: str) -> str:
         "sub": email,
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=settings.jwt_expire_hours),
     }
-    return jwt.encode(
-        payload,
-        settings.jwt_secret or "secret",
-        algorithm="HS256",
-    )
+    return jwt.encode(payload, get_jwt_secret(), algorithm="HS256")
 
 
 @router.post("/login", response_model=TokenResponse, summary="Admin login (Firebase credentials)")
@@ -56,6 +44,14 @@ async def admin_login(body: LoginRequest) -> TokenResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Admin login not configured (FIREBASE_API_KEY)",
         )
+    # Fail closed: any Firebase user can be created with the public web API key,
+    # so an empty allowlist must not mean "everyone".
+    if not get_allowed_admin_emails():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Admin login not configured (ALLOWED_ADMIN_EMAILS)",
+        )
+    get_jwt_secret()  # 503 before contacting Firebase if the secret is unusable
     try:
         async with httpx.AsyncClient() as client:
             res = await client.post(
@@ -77,7 +73,7 @@ async def admin_login(body: LoginRequest) -> TokenResponse:
     if res.status_code != 200:
         err = data.get("error", {})
         msg = err.get("message", "Invalid email or password")
-        if msg == "INVALID_PASSWORD" or msg == "EMAIL_NOT_FOUND":
+        if msg in ("INVALID_PASSWORD", "EMAIL_NOT_FOUND", "INVALID_LOGIN_CREDENTIALS"):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=msg)
 
@@ -85,8 +81,7 @@ async def admin_login(body: LoginRequest) -> TokenResponse:
     if not email:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid response from auth")
 
-    allowed = get_allowed_emails()
-    if allowed and email not in allowed:
+    if not is_admin_email(email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access admin",
