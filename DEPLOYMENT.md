@@ -98,17 +98,39 @@ az webapp deployment source config-zip \
   --src backend.zip
 ```
 
-**Option B: Deploy from GitHub (recommended)**
+**Option B: Deploy from GitHub Actions (recommended)**
 
-1. Web App → **Deployment Center**
-2. Source: **GitHub** → Authorize and select your repo
-3. Branch: `main`, Build provider: **GitHub Actions**
-4. After the first deploy, add the publish profile to GitHub:
-   - Web App → **Get publish profile** → Download
-   - GitHub repo → **Settings** → **Secrets and variables** → **Actions**
-   - New secret: `AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND` = contents of the publish profile
+`.github/workflows/azure-backend.yml` runs the backend tests on every PR and push that touches `backend/`, and on pushes to `master` it zips `app/`, `requirements.txt` and `startup.sh`, runs the same `az webapp deploy` as Option A, then checks `/health/`. You can also run it by hand from the Actions tab (deploys only from `master`).
 
-5. The workflow already uses `joels-portfolio` as the app name.
+It signs in to Azure with OpenID Connect, not a publish profile (basic-auth publishing is disabled on the app). One-time setup:
+
+This login sees several directories, so pin the Pay-As-You-Go subscription first: the app registration must live in its directory (tenant `b3fcc27f-…`), which is where `joels-portfolio` runs.
+
+```bash
+az account set --subscription "Pay-As-You-Go"
+SUB_ID=$(az account show --query id -o tsv)
+TENANT_ID=$(az account show --query tenantId -o tsv)
+
+# Identity for GitHub Actions, allowed to deploy only to this one web app
+APP_ID=$(az ad app create --display-name gh-joels-portfolio-backend-deploy --query appId -o tsv)
+az ad sp create --id "$APP_ID"
+az role assignment create --assignee "$APP_ID" --role "Website Contributor" \
+  --scope "/subscriptions/$SUB_ID/resourceGroups/personal_portfolio/providers/Microsoft.Web/sites/joels-portfolio"
+
+# Trust GitHub's OIDC tokens, but only for workflow runs on master
+az ad app federated-credential create --id "$APP_ID" --parameters '{
+  "name": "github-master",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:joelnataren9/joels-portolio:ref:refs/heads/master",
+  "audiences": ["api://AzureADTokenExchange"]
+}'
+
+gh secret set AZURE_CLIENT_ID --body "$APP_ID"
+gh secret set AZURE_TENANT_ID --body "$TENANT_ID"
+gh secret set AZURE_SUBSCRIPTION_ID --body "$SUB_ID"
+```
+
+App settings (Firebase credentials, `JWT_SECRET`, etc.) stay in Azure; the workflow never reads or changes them.
 
 ### Backend URL
 
