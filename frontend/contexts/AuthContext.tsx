@@ -22,6 +22,16 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+/** True if the JWT's exp claim has passed (or the token can't be read). */
+function isExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof payload.exp === "number" && payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -29,8 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setToken(localStorage.getItem(TOKEN_KEY));
-    setEmail(localStorage.getItem(EMAIL_KEY));
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (stored && isExpired(stored)) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(EMAIL_KEY);
+    } else {
+      setToken(stored);
+      setEmail(localStorage.getItem(EMAIL_KEY));
+    }
     setLoading(false);
   }, []);
 

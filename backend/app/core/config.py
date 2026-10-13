@@ -19,6 +19,7 @@ class Settings(BaseModel):
     firebase_credentials_json: Optional[str] = None  # JSON string for Azure/cloud (no file path)
     firebase_posts_collection: Optional[str] = None
     firebase_projects_collection: Optional[str] = None
+    firebase_trips_collection: Optional[str] = None
 
     @property
     def has_firebase_config(self) -> bool:
@@ -76,7 +77,8 @@ def get_settings() -> Settings:
     )
     return Settings(
         firebase_api_key=_env_strip("FIREBASE_API_KEY"),
-        jwt_secret=os.getenv("JWT_SECRET", "change-me-in-production"),
+        # No default: app.core.auth refuses to sign/verify tokens without a real secret.
+        jwt_secret=_env_strip("JWT_SECRET"),
         jwt_expire_hours=int(os.getenv("JWT_EXPIRE_HOURS", "24")),
         firebase_auth_domain=os.getenv("FIREBASE_AUTH_DOMAIN", "joels-portfolio-2f583.firebaseapp.com"),
         firebase_project_id=os.getenv("FIREBASE_PROJECT_ID", "joels-portfolio-2f583"),
@@ -88,4 +90,5 @@ def get_settings() -> Settings:
         firebase_credentials_json=firebase_credentials_json,
         firebase_posts_collection=os.getenv("FIREBASE_POSTS_COLLECTION", "posts"),
         firebase_projects_collection=os.getenv("FIREBASE_PROJECTS_COLLECTION", "projects"),
+        firebase_trips_collection=os.getenv("FIREBASE_TRIPS_COLLECTION", "trips"),
     )

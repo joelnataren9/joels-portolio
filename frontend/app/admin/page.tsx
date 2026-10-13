@@ -6,6 +6,13 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
+/** Where to go after login: ?next= if it's a path on this site, else the posts admin. */
+function nextPath(): string {
+  const next = new URLSearchParams(window.location.search).get("next");
+  // Reject "//host" and "/\host" so the login page can't redirect off-site.
+  return next && /^\/(?![/\\])/.test(next) ? next : "/admin/posts";
+}
+
 export default function AdminLoginPage() {
   const { user, loading, setAuth } = useAuth();
   const router = useRouter();
@@ -16,7 +23,7 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/admin/posts");
+      router.replace(nextPath());
     }
   }, [user, loading, router]);
 
@@ -35,7 +42,7 @@ export default function AdminLoginPage() {
         throw new Error(data.detail || "Login failed");
       }
       setAuth(data.access_token, data.email);
-      router.replace("/admin/posts");
+      router.replace(nextPath());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

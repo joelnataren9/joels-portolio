@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const links = [
   { href: "/", label: "Home" },
@@ -14,9 +15,16 @@ const links = [
   { href: "/contact", label: "Contact" },
 ] as const;
 
+// Private pages: only shown once signed in (the backend enforces access either way).
+const adminLinks = [{ href: "/trips", label: "Trips" }] as const;
+
 export default function Navbar() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const navLinks = user ? [...links, ...adminLinks] : links;
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
   useEffect(() => {
     setMenuOpen(false);
@@ -55,12 +63,12 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-6 text-[15px] text-slate-600 md:flex md:gap-8">
-          {links.map(({ href, label }) => (
+          {navLinks.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               className={`transition hover:text-emerald-600 ${
-                pathname === href ? "font-medium text-emerald-700" : ""
+                isActive(href) ? "font-medium text-emerald-700" : ""
               }`}
             >
               {label}
@@ -94,12 +102,12 @@ export default function Navbar() {
             className="relative z-20 border-t border-slate-200 bg-background/95 shadow-lg shadow-slate-900/5 backdrop-blur md:hidden"
           >
             <div className="mx-auto flex max-w-5xl flex-col gap-1 px-4 py-3 sm:px-6">
-              {links.map(({ href, label }) => (
+              {navLinks.map(({ href, label }) => (
                 <Link
                   key={href}
                   href={href}
                   className={`rounded-lg px-3 py-3 text-base text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-700 ${
-                    pathname === href ? "bg-emerald-50 font-medium text-emerald-800" : ""
+                    isActive(href) ? "bg-emerald-50 font-medium text-emerald-800" : ""
                   }`}
                   onClick={() => setMenuOpen(false)}
                 >
