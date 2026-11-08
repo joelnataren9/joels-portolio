@@ -40,6 +40,7 @@ This guide covers deploying the portfolio to Azure Portal (App Service and Stati
 | `FIREBASE_CREDENTIALS_JSON` | *(Paste full JSON from your Firebase service account key file)* |
 | `JWT_SECRET` | *(Required, 32+ chars — generate with `openssl rand -hex 32`)* |
 | `ALLOWED_ADMIN_EMAILS` | *(Required — your admin email(s), comma-separated. Empty = nobody can sign in)* |
+| `JWT_EXPIRE_HOURS` | *(Optional — how long a login lasts, in hours. Default `720` = 30 days)* |
 | `FIREBASE_API_KEY` | *(From Firebase Console)* |
 | `FIREBASE_AUTH_DOMAIN` | `joels-portfolio-2f583.firebaseapp.com` |
 | `FIREBASE_STORAGE_BUCKET` | `joels-portfolio-2f583.firebasestorage.app` |
