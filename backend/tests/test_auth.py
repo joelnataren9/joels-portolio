@@ -1,6 +1,7 @@
 """Tests for admin auth - allowlist and JWT secret must fail closed."""
 
 import datetime
+import time
 from unittest.mock import patch
 
 import jwt
@@ -161,3 +162,20 @@ def test_login_issues_token_that_protected_routes_accept(client):
     token = res.json()["access_token"]
     assert jwt.decode(token, SECRET, algorithms=["HS256"])["sub"] == ADMIN
     assert delete_post(client, token).status_code == 204
+
+
+def token_hours_left(client) -> float:
+    exp = jwt.decode(login(client).json()["access_token"], SECRET, algorithms=["HS256"])["exp"]
+    return (exp - time.time()) / 3600
+
+
+def test_login_lasts_30_days_by_default(client, auth_env):
+    auth_env.delenv("JWT_EXPIRE_HOURS", raising=False)
+    get_settings.cache_clear()
+    assert 719.9 < token_hours_left(client) <= 720
+
+
+def test_login_lifetime_follows_jwt_expire_hours(client, auth_env):
+    auth_env.setenv("JWT_EXPIRE_HOURS", "2")
+    get_settings.cache_clear()
+    assert 1.9 < token_hours_left(client) <= 2
