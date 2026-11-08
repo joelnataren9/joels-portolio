@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,11 +11,12 @@ router = APIRouter()
 
 
 def _datetime_to_iso(d: Optional[datetime]) -> Optional[str]:
-    """Convert datetime to ISO string for consistent Firestore storage."""
+    """Convert datetime to a UTC ISO string (same shape as JS toISOString) for consistent Firestore storage."""
     if d is None:
         return None
-    s = d.isoformat()
-    return s + "Z" if "Z" not in s and "+" not in s else s
+    if d.tzinfo is not None:
+        d = d.astimezone(timezone.utc).replace(tzinfo=None)
+    return d.isoformat(timespec="milliseconds") + "Z"
 
 
 def _to_document(model: Union[PostCreate, PostUpdate], existing: Optional[dict] = None) -> dict:
