@@ -525,7 +525,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument("html", type=Path)
     parser.add_argument("--dry-run", action="store_true", help="print the trip JSON, write nothing")
     parser.add_argument("--out", type=Path, help="with --dry-run, write JSON here instead of stdout")
-    parser.add_argument("--replace", metavar="TRIP_ID", help="overwrite this trip, keeping checkmarks")
+    parser.add_argument("--replace", metavar="TRIP_ID", help="overwrite this trip, keeping checkmarks and lists")
     parser.add_argument("--title")
     parser.add_argument("--variant-label")
     parser.add_argument("--variant-group")
@@ -560,6 +560,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         def mutate(current: Dict[str, Any]) -> Dict[str, Any]:
             replaced = json.loads(json.dumps(doc))
             carry_over_checks(replaced, current)
+            # The HTML has no lists or folds; keep the ones made in the app.
+            for key in ("checklists", "collapsedSections"):
+                replaced[key] = current.get(key, [])
             replaced.update({
                 "version": current.get("version", 1) + 1,
                 "createdAt": current.get("createdAt") or doc["createdAt"],

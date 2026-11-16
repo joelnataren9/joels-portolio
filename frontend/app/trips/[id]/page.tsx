@@ -15,7 +15,7 @@ export default function TripPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const api = useAdminApi();
-  const { trip, loadError, status, update, toggleItem, flush, reload, overwrite } = useTripSync(id);
+  const { trip, loadError, status, update, toggleItem, toggleSection, flush, reload, overwrite } = useTripSync(id);
   const [editing, setEditing] = useState(false);
 
   // New trips and duplicates open straight into edit mode (?edit=1).
@@ -80,7 +80,7 @@ export default function TripPage() {
       {editing ? (
         <TripEditor trip={trip} update={update} onToggle={toggleItem} onDuplicate={duplicate} onDelete={remove} />
       ) : (
-        <TripView trip={trip} onToggle={toggleItem} />
+        <TripView trip={trip} onToggle={toggleItem} onFold={toggleSection} />
       )}
       <SaveBar
         status={status}

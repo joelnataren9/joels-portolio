@@ -41,8 +41,9 @@ export type Update = (recipe: (draft: Trip) => void) => void;
 export type Toggle = (itemId: string, done: boolean) => void;
 type MoveOption = { group: string; options: { id: string; label: string }[] };
 
-/** "Move to" choices: every day grouped by leg, plus the ideas list. */
+/** "Move to" choices: every day grouped by leg, plus the ideas list and any checklists. */
 export function moveOptions(trip: Trip): MoveOption[] {
+  const lists = trip.checklists.map((list) => ({ id: list.id, label: list.title || "Untitled list" }));
   return [
     ...trip.legs.map((leg) => ({
       group: leg.name || "Untitled leg",
@@ -51,11 +52,11 @@ export function moveOptions(trip: Trip): MoveOption[] {
         label: `${day.date ? formatDay(day.date) : "No date"}${day.title ? ` — ${day.title}` : ""}`,
       })),
     })),
-    { group: "Unscheduled", options: [{ id: IDEAS, label: "Ideas to swap in" }] },
+    { group: "Unscheduled", options: [{ id: IDEAS, label: "Ideas to swap in" }, ...lists] },
   ];
 }
 
-/** Drag-and-drop for items across all days and the ideas list. */
+/** Drag-and-drop for items across all days, the ideas list and checklists. */
 export function ItemsDnd({ trip, update, children }: { trip: Trip; update: Update; children: ReactNode }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -126,6 +127,7 @@ function ItemEditor({
   options,
   update,
   onToggle,
+  compact,
 }: {
   item: Item;
   containerId: string;
@@ -133,6 +135,7 @@ function ItemEditor({
   options: MoveOption[];
   update: Update;
   onToggle: Toggle;
+  compact: boolean;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -167,58 +170,75 @@ function ItemEditor({
           aria-label="Done"
           className={`mt-2 h-4 w-4 shrink-0 cursor-pointer ${accent}`}
         />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <TextArea
-            value={item.title}
-            autoFocus={item.title === ""}
-            placeholder={`What to do. ${MARKDOWN_HINT}`}
-            onChange={(e) => edit((it) => void (it.title = e.target.value))}
-            className="font-medium"
-            aria-label="Item"
-          />
-          <div className="grid gap-1.5 sm:grid-cols-[150px_1fr]">
+        {compact ? (
+          <div className="grid min-w-0 flex-1 gap-1.5 sm:grid-cols-[1fr_130px]">
+            <TextArea
+              value={item.title}
+              autoFocus={item.title === ""}
+              onChange={(e) => edit((it) => void (it.title = e.target.value))}
+              aria-label="Item"
+            />
             <TextInput
               value={item.tag ?? ""}
-              placeholder="Tag (e.g. Temple)"
+              placeholder="Tag (optional)"
               onChange={(e) => edit((it) => void (it.tag = orNull(e.target.value)))}
               aria-label="Tag"
             />
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1 space-y-1.5">
             <TextArea
-              value={item.description ?? ""}
-              placeholder="Description (optional)"
-              onChange={(e) => edit((it) => void (it.description = orNull(e.target.value)))}
-              aria-label="Description"
+              value={item.title}
+              autoFocus={item.title === ""}
+              placeholder={`What to do. ${MARKDOWN_HINT}`}
+              onChange={(e) => edit((it) => void (it.title = e.target.value))}
+              className="font-medium"
+              aria-label="Item"
             />
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-600">
-            <label className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={item.optional}
-                onChange={(e) => edit((it) => void (it.optional = e.target.checked))}
+            <div className="grid gap-1.5 sm:grid-cols-[150px_1fr]">
+              <TextInput
+                value={item.tag ?? ""}
+                placeholder="Tag (e.g. Temple)"
+                onChange={(e) => edit((it) => void (it.tag = orNull(e.target.value)))}
+                aria-label="Tag"
               />
-              Optional
-            </label>
-            <label className="flex min-w-0 items-center gap-1.5">
-              Move to
-              <Select
-                value={containerId}
-                onChange={(e) => update((draft) => moveItem(draft, item.id, e.target.value))}
-                className="w-auto max-w-[220px] py-0.5 text-xs"
-              >
-                {options.map((group) => (
-                  <optgroup key={group.group} label={group.group}>
-                    {group.options.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </Select>
-            </label>
+              <TextArea
+                value={item.description ?? ""}
+                placeholder="Description (optional)"
+                onChange={(e) => edit((it) => void (it.description = orNull(e.target.value)))}
+                aria-label="Description"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-600">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={item.optional}
+                  onChange={(e) => edit((it) => void (it.optional = e.target.checked))}
+                />
+                Optional
+              </label>
+              <label className="flex min-w-0 items-center gap-1.5">
+                Move to
+                <Select
+                  value={containerId}
+                  onChange={(e) => update((draft) => moveItem(draft, item.id, e.target.value))}
+                  className="w-auto max-w-[220px] py-0.5 text-xs"
+                >
+                  {options.map((group) => (
+                    <optgroup key={group.group} label={group.group}>
+                      {group.options.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </Select>
+              </label>
+            </div>
           </div>
-        </div>
+        )}
         <IconButton
           label="Delete item"
           danger
@@ -236,7 +256,37 @@ function ItemEditor({
   );
 }
 
-/** A sortable, droppable list of items for one day (or the ideas list). */
+/** Text box that adds an item on Enter; pasting several lines adds one item per line. */
+function QuickAdd({ onAdd }: { onAdd: (titles: string[]) => void }) {
+  const [text, setText] = useState("");
+  const add = (raw: string) => {
+    const titles = raw.split(/\r?\n/).map((t) => t.trim()).filter(Boolean);
+    if (titles.length) onAdd(titles);
+    setText("");
+  };
+  return (
+    <TextInput
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          add(text);
+        }
+      }}
+      onPaste={(e) => {
+        const pasted = e.clipboardData.getData("text");
+        if (!pasted.includes("\n")) return;
+        e.preventDefault();
+        add(`${text}${pasted}`);
+      }}
+      placeholder="Add an item and press Enter (or paste a list, one per line)"
+      aria-label="Add an item"
+    />
+  );
+}
+
+/** A sortable, droppable list of items for one day, the ideas list, or a checklist. */
 export function ItemList({
   containerId,
   items,
@@ -245,6 +295,7 @@ export function ItemList({
   update,
   onToggle,
   addLabel = "Add item",
+  compact = false,
 }: {
   containerId: string;
   items: Item[];
@@ -253,6 +304,8 @@ export function ItemList({
   update: Update;
   onToggle: Toggle;
   addLabel?: string;
+  /** Checklist mode: one-line items (text + tag) and a type-and-Enter add box. */
+  compact?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: containerId });
   return (
@@ -274,11 +327,20 @@ export function ItemList({
               options={options}
               update={update}
               onToggle={onToggle}
+              compact={compact}
             />
           ))}
         </ul>
       </SortableContext>
-      <AddButton onClick={() => update((draft) => void itemList(draft, containerId)?.push(newItem()))}>{addLabel}</AddButton>
+      {compact ? (
+        <QuickAdd
+          onAdd={(titles) =>
+            update((draft) => void itemList(draft, containerId)?.push(...titles.map((title) => ({ ...newItem(), title }))))
+          }
+        />
+      ) : (
+        <AddButton onClick={() => update((draft) => void itemList(draft, containerId)?.push(newItem()))}>{addLabel}</AddButton>
+      )}
     </div>
   );
 }

@@ -19,10 +19,13 @@ from app.models.trip import (
     ItemDoneResult,
     ItemDoneUpdate,
     Leg,
+    SectionCollapsedResult,
+    SectionCollapsedUpdate,
     Trip,
     TripIn,
     TripSummary,
     TripUpdate,
+    section_ids,
 )
 
 # Router-level dependency so a new endpoint can't accidentally ship without auth.
@@ -58,14 +61,13 @@ def new_trip_document(trip: TripIn) -> Dict[str, Any]:
 
 
 def _find_item(doc: Dict[str, Any], item_id: str) -> Optional[Dict[str, Any]]:
-    for leg in doc.get("legs", []):
-        for day in leg.get("days", []):
-            for item in day.get("items", []):
-                if item.get("id") == item_id:
-                    return item
-    for item in doc.get("ideas", []):
-        if item.get("id") == item_id:
-            return item
+    lists = [day.get("items", []) for leg in doc.get("legs", []) for day in leg.get("days", [])]
+    lists.append(doc.get("ideas", []))
+    lists.extend(c.get("items", []) for c in doc.get("checklists", []))
+    for items in lists:
+        for item in items:
+            if item.get("id") == item_id:
+                return item
     return None
 
 
@@ -154,6 +156,34 @@ async def set_item_done_route(trip_id: str, item_id: str, body: ItemDoneUpdate) 
     except TripNotFoundError:
         raise _not_found()
     return ItemDoneResult(id=item_id, done=body.done, version=doc["version"])
+
+
+@router.patch(
+    "/{trip_id}/sections/{section_id}",
+    response_model=SectionCollapsedResult,
+    summary="Fold or unfold one section of the trip view (admin)",
+)
+async def set_section_collapsed_route(
+    trip_id: str, section_id: str, body: SectionCollapsedUpdate
+) -> SectionCollapsedResult:
+    """Like the item PATCH: no version check, so folding never conflicts; bumps the version."""
+
+    def mutate(current: Dict[str, Any]) -> Dict[str, Any]:
+        if section_id not in section_ids(Trip.model_validate(current)):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Section not found")
+        collapsed = [s for s in current.get("collapsedSections", []) if s != section_id]
+        if body.collapsed:
+            collapsed.append(section_id)
+        current["collapsedSections"] = collapsed
+        current["version"] = current.get("version", 1) + 1
+        current["updatedAt"] = _now_iso()
+        return current
+
+    try:
+        doc = update_trip(trip_id, mutate)
+    except TripNotFoundError:
+        raise _not_found()
+    return SectionCollapsedResult(id=section_id, collapsed=body.collapsed, version=doc["version"])
 
 
 @router.delete("/{trip_id}", status_code=204, summary="Delete a trip (admin)")

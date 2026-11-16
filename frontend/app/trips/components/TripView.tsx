@@ -1,5 +1,7 @@
 import {
   type BudgetLine,
+  type Checklist,
+  type Item,
   type Leg,
   type Trip,
   LEG_STYLES,
@@ -8,14 +10,20 @@ import {
   formatMoneyRange,
   formatRange,
 } from "@/app/lib/trips";
-import { Checkbox, DayCard } from "./DayCard";
+import { Checkbox, DayCard, ItemRow } from "./DayCard";
+import { type Fold, FoldSection } from "./FoldSection";
 import { Md } from "./Md";
 import { Progress } from "./Progress";
 import { Reservations } from "./Reservations";
 
 type Toggle = (itemId: string, done: boolean) => void;
+type Folding = { isCollapsed: (sectionId: string) => boolean; onFold: Fold };
 
-const sectionTitle = "border-b-2 border-trip-sand pb-2 text-[1.4rem] font-semibold";
+function progress(items: Item[]): string | undefined {
+  if (items.length === 0) return undefined;
+  const done = items.filter((i) => i.done).length;
+  return done === items.length ? "All done ✓" : `${done}/${items.length} done`;
+}
 
 function countdown(trip: Trip): string | null {
   const untilStart = daysUntil(trip.startDate);
@@ -45,14 +53,21 @@ function PhotoStrip({ photos, height = "h-32" }: { photos: Leg["photos"]; height
   );
 }
 
-function LegSection({ leg, onToggle }: { leg: Leg; onToggle: Toggle }) {
+function LegSection({ leg, onToggle, isCollapsed, onFold }: { leg: Leg; onToggle: Toggle } & Folding) {
   const style = LEG_STYLES[leg.color];
   return (
-    <section id={leg.id} className="scroll-mt-24">
-      <h2 className={`flex items-center gap-2.5 ${sectionTitle}`}>
-        <span className={`h-3 w-3 shrink-0 rounded-full ${style.dot}`} aria-hidden />
-        {leg.name}
-      </h2>
+    <FoldSection
+      id={leg.id}
+      title={
+        <>
+          <span className={`h-3 w-3 shrink-0 rounded-full ${style.dot}`} aria-hidden />
+          <span className="min-w-0">{leg.name}</span>
+        </>
+      }
+      meta={progress(leg.days.flatMap((d) => d.items))}
+      collapsed={isCollapsed(leg.id)}
+      onFold={onFold}
+    >
       {leg.subtitle && (
         <p className="mt-1.5 text-sm text-[#8a7c6d]">
           <Md inline>{leg.subtitle}</Md>
@@ -102,19 +117,50 @@ function LegSection({ leg, onToggle }: { leg: Leg; onToggle: Toggle }) {
           <DayCard key={day.id} day={day} color={leg.color} onToggle={onToggle} />
         ))}
       </div>
-    </section>
+    </FoldSection>
   );
 }
 
-function Budget({ lines, travelers }: { lines: BudgetLine[]; travelers: number }) {
+function ChecklistSection({ list, onToggle, isCollapsed, onFold }: { list: Checklist; onToggle: Toggle } & Folding) {
+  const done = list.items.length > 0 && list.items.every((i) => i.done);
+  return (
+    <FoldSection
+      id={list.id}
+      title={<span className="min-w-0">{list.title}</span>}
+      meta={<span className={done ? "font-semibold text-trip-teal" : ""}>{progress(list.items)}</span>}
+      collapsed={isCollapsed(list.id)}
+      onFold={onFold}
+    >
+      {list.items.length === 0 ? (
+        <p className="mt-3 text-sm text-stone-500">Nothing here yet. Add items with Edit trip.</p>
+      ) : (
+        <ul className="mt-3 rounded-lg border border-[#ece2d2] bg-white px-4 py-2.5 sm:px-5">
+          {list.items.map((item) => (
+            <ItemRow key={item.id} item={item} accent={LEG_STYLES.teal.accent} onToggle={onToggle} />
+          ))}
+        </ul>
+      )}
+    </FoldSection>
+  );
+}
+
+function Budget({ lines, travelers, isCollapsed, onFold }: { lines: BudgetLine[]; travelers: number } & Folding) {
   if (lines.length === 0) return null;
   const low = lines.reduce((sum, l) => sum + (l.low ?? l.high ?? 0), 0);
   const high = lines.reduce((sum, l) => sum + (l.high ?? l.low ?? 0), 0);
+  const collapsed = isCollapsed("budget");
   return (
-    <section id="budget" className="scroll-mt-24">
-      <h2 className={sectionTitle}>
-        Budget <span className="text-base font-normal text-stone-500">(USD per person)</span>
-      </h2>
+    <FoldSection
+      id="budget"
+      title={
+        <span>
+          Budget <span className="text-base font-normal text-stone-500">(USD per person)</span>
+        </span>
+      }
+      meta={collapsed ? formatMoneyRange(low, high) : undefined}
+      collapsed={collapsed}
+      onFold={onFold}
+    >
       <div className="mt-3 overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -151,14 +197,17 @@ function Budget({ lines, travelers }: { lines: BudgetLine[]; travelers: number }
           </tbody>
         </table>
       </div>
-    </section>
+    </FoldSection>
   );
 }
 
-export function TripView({ trip, onToggle }: { trip: Trip; onToggle: Toggle }) {
+export function TripView({ trip, onToggle, onFold }: { trip: Trip; onToggle: Toggle; onFold: Fold }) {
   const items = dayItems(trip);
   const when = countdown(trip);
+  const collapsed = new Set(trip.collapsedSections);
+  const folding: Folding = { isCollapsed: (id) => collapsed.has(id), onFold };
   const sections = [
+    ...trip.checklists.map((list) => ({ href: `#${list.id}`, label: list.title, dot: "" })),
     ...trip.legs.map((leg) => ({ href: `#${leg.id}`, label: leg.name, dot: LEG_STYLES[leg.color].dot })),
     ...(trip.ideas.length ? [{ href: "#ideas", label: "Ideas", dot: "" }] : []),
     ...(trip.reservations.length ? [{ href: "#reservations", label: "Reservations", dot: "" }] : []),
@@ -207,13 +256,22 @@ export function TripView({ trip, onToggle }: { trip: Trip; onToggle: Toggle }) {
         </section>
       )}
 
+      {trip.checklists.map((list) => (
+        <ChecklistSection key={list.id} list={list} onToggle={onToggle} {...folding} />
+      ))}
+
       {trip.legs.map((leg) => (
-        <LegSection key={leg.id} leg={leg} onToggle={onToggle} />
+        <LegSection key={leg.id} leg={leg} onToggle={onToggle} {...folding} />
       ))}
 
       {trip.ideas.length > 0 && (
-        <section id="ideas" className="scroll-mt-24">
-          <h2 className={sectionTitle}>Ideas to swap in</h2>
+        <FoldSection
+          id="ideas"
+          title="Ideas to swap in"
+          meta={collapsed.has("ideas") ? `${trip.ideas.length} ideas` : undefined}
+          collapsed={collapsed.has("ideas")}
+          onFold={onFold}
+        >
           <ul className="mt-3 space-y-2.5 text-sm">
             {trip.ideas.map((idea) => (
               <li key={idea.id} className="flex items-start gap-2">
@@ -232,16 +290,26 @@ export function TripView({ trip, onToggle }: { trip: Trip; onToggle: Toggle }) {
               </li>
             ))}
           </ul>
-        </section>
+        </FoldSection>
       )}
 
-      <Reservations reservations={trip.reservations} legs={trip.legs} />
+      <Reservations
+        reservations={trip.reservations}
+        legs={trip.legs}
+        collapsed={collapsed.has("reservations")}
+        onFold={onFold}
+      />
 
-      <Budget lines={trip.budget} travelers={trip.travelers} />
+      <Budget lines={trip.budget} travelers={trip.travelers} {...folding} />
 
       {trip.notes.length > 0 && (
-        <section id="notes" className="scroll-mt-24">
-          <h2 className={sectionTitle}>Notes</h2>
+        <FoldSection
+          id="notes"
+          title="Notes"
+          meta={collapsed.has("notes") ? `${trip.notes.length} notes` : undefined}
+          collapsed={collapsed.has("notes")}
+          onFold={onFold}
+        >
           <ul className="mt-3 space-y-3">
             {trip.notes.map((note) => (
               <li key={note.id} className="rounded-lg border border-[#ecdcb8] bg-[#fbf3e3] px-4 py-3 text-sm">
@@ -250,7 +318,7 @@ export function TripView({ trip, onToggle }: { trip: Trip; onToggle: Toggle }) {
               </li>
             ))}
           </ul>
-        </section>
+        </FoldSection>
       )}
     </div>
   );

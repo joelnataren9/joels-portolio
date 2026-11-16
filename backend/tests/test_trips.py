@@ -96,6 +96,7 @@ def sample_trip():
     ("get", "/trips/t1"),
     ("put", "/trips/t1"),
     ("patch", "/trips/t1/items/i1"),
+    ("patch", "/trips/t1/sections/ideas"),
     ("delete", "/trips/t1"),
 ])
 def test_every_trips_route_requires_auth(store, method, path):
@@ -201,3 +202,73 @@ def test_delete_trip(client, store):
     assert client.delete(f"/trips/{trip_id}").status_code == 204
     assert trip_id not in store.docs
     assert client.delete(f"/trips/{trip_id}").status_code == 404
+
+
+def trip_with_packing_list():
+    trip = sample_trip()
+    trip["checklists"] = [{
+        "id": "pack",
+        "title": "Things to pack",
+        "items": [{"id": "p1", "title": "Passport"}, {"id": "p2", "title": "Chargers", "done": True}],
+    }]
+    return trip
+
+
+def test_checklists_round_trip_and_stay_out_of_itinerary_progress(client):
+    trip_id = client.post("/trips", json=trip_with_packing_list()).json()["id"]
+    fetched = client.get(f"/trips/{trip_id}").json()
+    assert fetched["checklists"][0]["title"] == "Things to pack"
+    assert fetched["collapsedSections"] == []
+    [summary] = client.get("/trips").json()
+    assert (summary["itemsTotal"], summary["itemsDone"]) == (3, 1)
+
+
+def test_patch_item_works_for_checklists(client, store):
+    trip_id = client.post("/trips", json=trip_with_packing_list()).json()["id"]
+    assert client.patch(f"/trips/{trip_id}/items/p1", json={"done": True}).status_code == 200
+    assert store.docs[trip_id]["checklists"][0]["items"][0]["done"] is True
+
+
+def test_checklist_item_ids_must_not_clash_with_day_items(client):
+    trip = trip_with_packing_list()
+    trip["checklists"][0]["items"][0]["id"] = "i1"
+    assert client.post("/trips", json=trip).status_code == 422
+
+
+def test_checklist_ids_must_be_unique(client):
+    trip = trip_with_packing_list()
+    trip["checklists"].append({"id": "pack", "title": "Copy", "items": []})
+    assert client.post("/trips", json=trip).status_code == 422
+
+
+@pytest.mark.parametrize("section", ["pack", "tokyo", "ideas", "reservations", "budget", "notes"])
+def test_fold_and_unfold_a_section(client, store, section):
+    trip_id = client.post("/trips", json=trip_with_packing_list()).json()["id"]
+    res = client.patch(f"/trips/{trip_id}/sections/{section}", json={"collapsed": True})
+    assert res.status_code == 200
+    assert res.json() == {"id": section, "collapsed": True, "version": 2}
+    client.patch(f"/trips/{trip_id}/sections/{section}", json={"collapsed": True})  # twice: still one entry
+    assert store.docs[trip_id]["collapsedSections"] == [section]
+
+    client.patch(f"/trips/{trip_id}/sections/{section}", json={"collapsed": False})
+    assert store.docs[trip_id]["collapsedSections"] == []
+    assert client.get(f"/trips/{trip_id}").json()["version"] == 4
+
+
+def test_fold_unknown_section_is_404(client, store):
+    trip_id = client.post("/trips", json=sample_trip()).json()["id"]
+    res = client.patch(f"/trips/{trip_id}/sections/nope", json={"collapsed": True})
+    assert res.status_code == 404
+    assert store.docs[trip_id]["version"] == 1
+
+
+def test_fold_on_missing_trip_is_404(client):
+    assert client.patch("/trips/nope/sections/ideas", json={"collapsed": True}).status_code == 404
+
+
+def test_put_keeps_folds_and_forgets_deleted_sections(client):
+    trip_id = client.post("/trips", json=trip_with_packing_list()).json()["id"]
+    client.patch(f"/trips/{trip_id}/sections/pack", json={"collapsed": True})
+    body = {**sample_trip(), "collapsedSections": ["pack", "budget", "budget"], "version": 2}  # list deleted
+    saved = client.put(f"/trips/{trip_id}", json=body).json()
+    assert saved["collapsedSections"] == ["budget"]

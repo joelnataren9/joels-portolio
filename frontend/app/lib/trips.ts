@@ -72,6 +72,9 @@ export type BudgetLine = {
 
 export type Note = { id: string; title?: string | null; body: string };
 
+/** A free-standing checklist, e.g. "Things to pack". */
+export type Checklist = { id: string; title: string; items: Item[] };
+
 export type Trip = {
   id: string;
   title: string;
@@ -89,6 +92,9 @@ export type Trip = {
   reservations: Reservation[];
   budget: BudgetLine[];
   notes: Note[];
+  checklists: Checklist[];
+  /** Ids of sections folded shut in the trip view: leg ids, checklist ids, or a FIXED_SECTIONS key. */
+  collapsedSections: string[];
   version: number;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -185,7 +191,7 @@ export function dayItems(trip: Trip): Item[] {
   return trip.legs.flatMap((leg) => leg.days.flatMap((day) => day.items));
 }
 
-/** Copy of the trip with one item's done flag changed (day items and ideas). */
+/** Copy of the trip with one item's done flag changed (day items, ideas and checklists). */
 export function withItemDone(trip: Trip, itemId: string, done: boolean): Trip {
   const update = (items: Item[]) =>
     items.some((i) => i.id === itemId)
@@ -198,12 +204,22 @@ export function withItemDone(trip: Trip, itemId: string, done: boolean): Trip {
       days: leg.days.map((day) => ({ ...day, items: update(day.items) })),
     })),
     ideas: update(trip.ideas),
+    checklists: trip.checklists.map((list) => ({ ...list, items: update(list.items) })),
   };
+}
+
+/** Sections that always exist; legs and checklists fold by their own id. */
+export const FIXED_SECTIONS = ["ideas", "reservations", "budget", "notes"] as const;
+
+/** Copy of the trip with one section folded or unfolded. */
+export function withSectionCollapsed(trip: Trip, sectionId: string, collapsed: boolean): Trip {
+  const rest = trip.collapsedSections.filter((id) => id !== sectionId);
+  return { ...trip, collapsedSections: collapsed ? [...rest, sectionId] : rest };
 }
 
 // --- Editing helpers (also safe on immer drafts) ---
 
-/** Container id for the unscheduled ideas list; day ids are the other containers. */
+/** Container id for the unscheduled ideas list; day and checklist ids are the other containers. */
 export const IDEAS = "ideas";
 
 export function newId(prefix: string): string {
@@ -229,13 +245,14 @@ export function findDay(trip: Trip, dayId: string): Day | undefined {
   return undefined;
 }
 
-/** The item array for a container: a day's items, or the ideas list. */
+/** The item array for a container: a day's items, a checklist's, or the ideas list. */
 export function itemList(trip: Trip, containerId: string): Item[] | undefined {
-  return containerId === IDEAS ? trip.ideas : findDay(trip, containerId)?.items;
+  if (containerId === IDEAS) return trip.ideas;
+  return findDay(trip, containerId)?.items ?? trip.checklists.find((c) => c.id === containerId)?.items;
 }
 
 export function isContainer(trip: Trip, id: string): boolean {
-  return id === IDEAS || Boolean(findDay(trip, id));
+  return itemList(trip, id) !== undefined;
 }
 
 export function containerOf(trip: Trip, itemId: string): string | undefined {
@@ -245,7 +262,7 @@ export function containerOf(trip: Trip, itemId: string): string | undefined {
       if (day.items.some((i) => i.id === itemId)) return day.id;
     }
   }
-  return undefined;
+  return trip.checklists.find((c) => c.items.some((i) => i.id === itemId))?.id;
 }
 
 export function findItem(trip: Trip, itemId: string): Item | undefined {
@@ -287,6 +304,10 @@ export function validateTrip(trip: Trip): string | null {
   }
   if (trip.heroPhotos.some((p) => !p.url.trim())) return "A header photo is missing its URL";
   if (trip.ideas.some((i) => !i.title.trim())) return "An idea has no text yet";
+  for (const list of trip.checklists) {
+    if (!list.title.trim()) return "A list is missing its name";
+    if (list.items.some((i) => !i.title.trim())) return `An item in "${list.title}" has no text yet`;
+  }
   if (trip.reservations.some((r) => !r.name.trim())) return "A reservation is missing its name";
   if (trip.budget.some((b) => !b.category.trim())) return "A budget line is missing its category";
   return null;
