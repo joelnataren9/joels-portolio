@@ -1,7 +1,7 @@
 import { produce } from "immer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, useAdminApi } from "@/app/lib/api";
-import { type Trip, toSavePayload, validateTrip, withItemDone } from "@/app/lib/trips";
+import { type Trip, toSavePayload, validateTrip, withItemDone, withSectionCollapsed } from "@/app/lib/trips";
 
 export type SaveStatus =
   | { state: "idle" | "pending" | "saving" | "saved" }
@@ -17,7 +17,8 @@ function message(err: unknown): string {
 /**
  * Loads a trip and keeps it in sync with the backend.
  * - update(recipe): edit the trip (immer draft); auto-saves the whole trip after a pause.
- * - toggleItem: checkbox tick, saved right away with the small PATCH endpoint.
+ * - toggleItem / toggleSection: a checkbox tick or a section fold, saved right away
+ *   with a small PATCH endpoint.
  * All requests run one at a time, each with the latest version, so this tab never
  * conflicts with itself; a 409 means another device saved first.
  */
@@ -46,7 +47,9 @@ export function useTripSync(id: string) {
   }, []);
 
   const load = useCallback(async () => {
-    const loaded = await api<Trip>(path);
+    const raw = await api<Trip>(path);
+    // Older API versions don't send these yet.
+    const loaded = { ...raw, checklists: raw.checklists ?? [], collapsedSections: raw.collapsedSections ?? [] };
     versionRef.current = loaded.version;
     dirtyRef.current = false;
     conflictRef.current = false;
@@ -127,6 +130,25 @@ export function useTripSync(id: string) {
     [api, enqueue, path, show],
   );
 
+  const toggleSection = useCallback(
+    (sectionId: string, collapsed: boolean) => {
+      if (tripRef.current) show(withSectionCollapsed(tripRef.current, sectionId, collapsed));
+      enqueue(async () => {
+        try {
+          const res = await api<{ version: number }>(`${path}/sections/${encodeURIComponent(sectionId)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ collapsed }),
+          });
+          versionRef.current = res.version;
+        } catch (err) {
+          if (tripRef.current) show(withSectionCollapsed(tripRef.current, sectionId, !collapsed));
+          setStatus({ state: "error", message: `Couldn't ${collapsed ? "hide" : "show"} that section: ${message(err)}` });
+        }
+      });
+    },
+    [api, enqueue, path, show],
+  );
+
   /** After a conflict: drop local edits and load what's on the server. */
   const reload = useCallback(() => enqueue(() => load().catch((err) => setLoadError(message(err)))), [enqueue, load]);
 
@@ -156,5 +178,5 @@ export function useTripSync(id: string) {
     };
   }, [flush]);
 
-  return { trip, loadError, status, update, toggleItem, flush, reload, overwrite };
+  return { trip, loadError, status, update, toggleItem, toggleSection, flush, reload, overwrite };
 }

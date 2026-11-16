@@ -9,6 +9,7 @@ import {
   STATUS_STYLES,
   formatRange,
 } from "@/app/lib/trips";
+import { type Fold, FoldSection } from "./FoldSection";
 import { Md } from "./Md";
 
 const GROUPS: { title: string; statuses: ReservationStatus[] }[] = [
@@ -109,7 +110,17 @@ function ReservationCard({ res, legName }: { res: Reservation; legName?: string 
   );
 }
 
-export function Reservations({ reservations, legs }: { reservations: Reservation[]; legs: Leg[] }) {
+export function Reservations({
+  reservations,
+  legs,
+  collapsed,
+  onFold,
+}: {
+  reservations: Reservation[];
+  legs: Leg[];
+  collapsed: boolean;
+  onFold: Fold;
+}) {
   if (reservations.length === 0) return null;
   const legNames = Object.fromEntries(legs.map((leg) => [leg.id, leg.name]));
   const sorted = [...reservations].sort(
@@ -119,8 +130,13 @@ export function Reservations({ reservations, legs }: { reservations: Reservation
   );
 
   return (
-    <section id="reservations" className="scroll-mt-24">
-      <h2 className="border-b-2 border-trip-sand pb-2 text-[1.4rem] font-semibold">Reservations</h2>
+    <FoldSection
+      id="reservations"
+      title="Reservations"
+      meta={collapsed ? `${reservations.length} saved` : undefined}
+      collapsed={collapsed}
+      onFold={onFold}
+    >
       {GROUPS.map(({ title, statuses }) => {
         const group = sorted.filter((r) => statuses.includes(r.status));
         if (group.length === 0) return null;
@@ -137,6 +153,6 @@ export function Reservations({ reservations, legs }: { reservations: Reservation
           </div>
         );
       })}
-    </section>
+    </FoldSection>
   );
 }

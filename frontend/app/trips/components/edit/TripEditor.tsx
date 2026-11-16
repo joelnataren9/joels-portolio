@@ -2,6 +2,7 @@
 
 import { IDEAS, LEG_STYLES, type Trip, newId } from "@/app/lib/trips";
 import { AddButton, Field, Group, MARKDOWN_HINT, TextArea, TextInput, orNull } from "./fields";
+import { ChecklistsEditor } from "./ChecklistsEditor";
 import { ItemList, ItemsDnd, type Toggle, type Update, moveOptions } from "./ItemEditors";
 import { LegEditor, PhotosEditor } from "./LegEditor";
 import { BudgetEditor, NotesEditor, ReservationsEditor } from "./SectionEditors";
@@ -72,6 +73,8 @@ export function TripEditor({
       </section>
 
       <ItemsDnd trip={trip} update={update}>
+        <ChecklistsEditor trip={trip} update={update} onToggle={onToggle} />
+
         <div className="space-y-6">
           {trip.legs.map((leg, i) => (
             <LegEditor key={leg.id} trip={trip} leg={leg} legIndex={i} update={update} onToggle={onToggle} />

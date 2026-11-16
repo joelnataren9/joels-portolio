@@ -23,7 +23,7 @@ export function Tag({ children }: { children: string }) {
   );
 }
 
-function ItemRow({ item, accent, onToggle }: { item: Item; accent: string; onToggle: Toggle }) {
+export function ItemRow({ item, accent, onToggle }: { item: Item; accent: string; onToggle: Toggle }) {
   const doneText = item.done ? "text-stone-400 line-through decoration-stone-300" : "";
   const title = (
     <>

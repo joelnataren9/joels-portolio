@@ -1,7 +1,7 @@
 """Private trip planner models. Stored as one Firestore document per trip (camelCase)."""
 
 from datetime import date
-from typing import Iterator, List, Literal, Optional
+from typing import Iterator, List, Literal, Optional, Set
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
@@ -96,6 +96,17 @@ class Note(_Camel):
     body: str  # markdown
 
 
+class Checklist(_Camel):
+    """A free-standing checklist, e.g. "Things to pack"."""
+    id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    items: List[Item] = Field(default_factory=list)
+
+
+# Sections that always exist; legs and checklists are collapsible by their own id.
+FIXED_SECTIONS = ("ideas", "reservations", "budget", "notes")
+
+
 class TripIn(_Camel):
     title: str = Field(min_length=1)
     subtitle: Optional[str] = None
@@ -112,6 +123,9 @@ class TripIn(_Camel):
     reservations: List[Reservation] = Field(default_factory=list)
     budget: List[BudgetLine] = Field(default_factory=list)
     notes: List[Note] = Field(default_factory=list)
+    checklists: List[Checklist] = Field(default_factory=list)
+    # Ids of sections folded shut in the trip view (shared by everyone who opens it).
+    collapsed_sections: List[str] = Field(default_factory=list, max_length=500)
 
     @model_validator(mode="after")
     def _check(self) -> "TripIn":
@@ -120,6 +134,12 @@ class TripIn(_Camel):
         ids = [item.id for item in iter_items(self)]
         if len(ids) != len(set(ids)):
             raise ValueError("Item ids must be unique within a trip")
+        list_ids = [c.id for c in self.checklists]
+        if len(list_ids) != len(set(list_ids)):
+            raise ValueError("Checklist ids must be unique within a trip")
+        # Forget folds for sections that no longer exist (deleted legs/lists).
+        sections = section_ids(self)
+        self.collapsed_sections = [s for s in dict.fromkeys(self.collapsed_sections) if s in sections]
         return self
 
 
@@ -157,9 +177,26 @@ class ItemDoneResult(_Camel):
     version: int
 
 
+class SectionCollapsedUpdate(_Camel):
+    collapsed: bool
+
+
+class SectionCollapsedResult(_Camel):
+    id: str
+    collapsed: bool
+    version: int
+
+
 def iter_items(trip: TripIn) -> Iterator[Item]:
-    """Every checklist item in a trip: day items in order, then ideas."""
+    """Every checkable item in a trip: day items in order, then ideas, then checklists."""
     for leg in trip.legs:
         for day in leg.days:
             yield from day.items
     yield from trip.ideas
+    for checklist in trip.checklists:
+        yield from checklist.items
+
+
+def section_ids(trip: TripIn) -> Set[str]:
+    """Ids of every section that can be collapsed in the trip view."""
+    return {*FIXED_SECTIONS, *(leg.id for leg in trip.legs), *(c.id for c in trip.checklists)}
